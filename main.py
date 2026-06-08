@@ -28,7 +28,7 @@ console = Console()
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="outreach",
-        description="AI-powered B2B outreach pipeline: Ocean.io → Prospeo → EazyReach → Brevo",
+        description="AI-powered B2B outreach pipeline: Ocean.io → Prospeo → Brevo",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -250,7 +250,6 @@ def main() -> None:
         for name in [
             "src.services.ocean_service",
             "src.services.prospeo_service",
-            "src.services.eazyreach_service",
             "src.services.brevo_service",
             "src.pipeline.outreach_pipeline",
         ]:

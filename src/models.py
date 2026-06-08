@@ -80,7 +80,7 @@ class Contact(BaseModel):
     verified_email: str | None = None
     email_status: VerificationStatus = VerificationStatus.PENDING
 
-    # EazyReach enrichment fields
+    # Optional enrichment fields
     phone: str | None = None
     location: str | None = None
     seniority: str | None = None

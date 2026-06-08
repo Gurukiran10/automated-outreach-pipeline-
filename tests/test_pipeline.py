@@ -10,7 +10,6 @@ from src.models import (
     EmailResult,
     LookalikeResponse,
     SendStatus,
-    VerificationStatus,
 )
 
 
@@ -54,19 +53,6 @@ def mock_prospeo(mocker):
     return svc
 
 
-@pytest.fixture()
-def mock_eazyreach(mocker):
-    def _enrich(contacts):
-        for c in contacts:
-            c.verified_email = f"alice@{c.company_domain}"
-            c.email_status = VerificationStatus.VERIFIED
-        return contacts
-
-    svc = mocker.MagicMock()
-    svc.run.side_effect = _enrich
-    mocker.patch("src.pipeline.outreach_pipeline.EazyReachService", return_value=svc)
-    return svc
-
 
 @pytest.fixture()
 def mock_brevo(mocker):
@@ -103,7 +89,7 @@ def mock_export(mocker):
 
 class TestOutreachPipeline:
     def test_dry_run_skips_email_stage(
-        self, mock_ocean, mock_prospeo, mock_eazyreach, mock_brevo, mock_export
+        self, mock_ocean, mock_prospeo, mock_brevo, mock_export
     ):
         from src.pipeline.outreach_pipeline import OutreachPipeline
 
@@ -119,7 +105,6 @@ class TestOutreachPipeline:
         self,
         mock_ocean,
         mock_prospeo,
-        mock_eazyreach,
         mock_brevo,
         mock_confirm_yes,
         mock_export,
@@ -135,7 +120,7 @@ class TestOutreachPipeline:
         assert result.emails_failed == 0
 
     def test_domain_normalised(
-        self, mock_ocean, mock_prospeo, mock_eazyreach, mock_brevo, mock_confirm_yes, mock_export
+        self, mock_ocean, mock_prospeo, mock_brevo, mock_confirm_yes, mock_export
     ):
         from src.pipeline.outreach_pipeline import OutreachPipeline
 
@@ -147,7 +132,6 @@ class TestOutreachPipeline:
         self,
         mock_ocean,
         mock_prospeo,
-        mock_eazyreach,
         mock_brevo,
         mock_confirm_yes,
         mocker,
@@ -165,7 +149,7 @@ class TestOutreachPipeline:
         json_exp.assert_called_once()
 
     def test_user_declines_no_emails_sent(
-        self, mock_ocean, mock_prospeo, mock_eazyreach, mock_brevo, mock_export, mocker
+        self, mock_ocean, mock_prospeo, mock_brevo, mock_export, mocker
     ):
         mocker.patch("src.pipeline.outreach_pipeline.confirm", return_value=False)
 

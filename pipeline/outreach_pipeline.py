@@ -4,7 +4,6 @@ from config.settings import get_settings
 from models.contact import Contact, VerificationStatus
 from models.email_result import PipelineResult, SendStatus
 from services.brevo_service import BrevoService
-from services.eazyreach_service import EazyreachService
 from services.ocean_service import OceanService
 from services.prospeo_service import ProspeoService
 from utils.helpers import deduplicate, normalise_domain, prompt_yes_no, save_json
@@ -18,7 +17,6 @@ class OutreachPipeline:
     def __init__(self) -> None:
         self.ocean = OceanService()
         self.prospeo = ProspeoService()
-        self.eazyreach = EazyreachService()
         self.brevo = BrevoService()
 
     # ------------------------------------------------------------------
@@ -55,26 +53,22 @@ class OutreachPipeline:
         return all_contacts
 
     # ------------------------------------------------------------------
-    # Stage 3 – Eazyreach: verified emails
+    # Stage 3 – Prospeo Email Selection
     # ------------------------------------------------------------------
     def stage_verify_emails(self, contacts: list[Contact]) -> list[Contact]:
-        logger.info("=== Stage 3: Eazyreach Email Verification ===")
-        # Only enrich contacts that came from LinkedIn
-        needs_verification = [c for c in contacts if c.linkedin_url and not c.verified_email]
-        already_have_email = [c for c in contacts if c not in needs_verification]
+        logger.info("=== Stage 3: Prospeo Email Selection ===")
+        for c in contacts:
+            if c.email and not c.verified_email:
+                c.verified_email = c.email
+                c.email_status = VerificationStatus.VERIFIED
 
-        enriched = self.eazyreach.enrich_contacts(needs_verification)
-
-        verified = [
-            c for c in enriched
-            if c.verified_email and c.email_status in (VerificationStatus.VERIFIED, VerificationStatus.CATCH_ALL)
-        ]
+        verified = [c for c in contacts if c.verified_email or c.email]
         logger.info(
-            "Verified %d emails out of %d attempted.",
+            "Selected %d contacts with emails out of %d.",
             len(verified),
-            len(needs_verification),
+            len(contacts),
         )
-        return verified + [c for c in already_have_email if c.email or c.verified_email]
+        return verified
 
     # ------------------------------------------------------------------
     # Stage 4 – Brevo: send emails (after user confirmation)

@@ -30,13 +30,6 @@ class ProspeoSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
 
 
-class EazyReachSettings(BaseSettings):
-    api_key: str = Field(default="", alias="EAZYREACH_API_KEY")
-    # TODO: Confirm base URL with EazyReach support team
-    base_url: str = Field(default="https://api.eazyreach.io/v1", alias="EAZYREACH_BASE_URL")
-
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore", populate_by_name=True)
-
 
 class BrevoSettings(BaseSettings):
     api_key: str = Field(default="", alias="BREVO_API_KEY")
@@ -80,10 +73,6 @@ def get_ocean() -> OceanSettings:
 def get_prospeo() -> ProspeoSettings:
     return ProspeoSettings()
 
-
-@lru_cache(maxsize=1)
-def get_eazyreach() -> EazyReachSettings:
-    return EazyReachSettings()
 
 
 @lru_cache(maxsize=1)

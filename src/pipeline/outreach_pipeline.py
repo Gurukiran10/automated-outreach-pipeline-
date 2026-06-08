@@ -1,6 +1,8 @@
 """OutreachPipeline — orchestrates all four service stages."""
 from __future__ import annotations
 
+import time
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
@@ -10,7 +12,6 @@ from src.config import get_app
 from src.logger import get_logger
 from src.models import Contact, PipelineResult, SendStatus, VerificationStatus
 from src.services.brevo_service import BrevoService
-from src.services.eazyreach_service import EazyReachService
 from src.services.ocean_service import OceanService
 from src.services.prospeo_service import ProspeoService
 from src.utils import (
@@ -30,7 +31,6 @@ class OutreachPipeline:
     def __init__(self) -> None:
         self._ocean = OceanService()
         self._prospeo = ProspeoService()
-        self._eazyreach = EazyReachService()
         self._brevo = BrevoService()
         self._app = get_app()
 
@@ -79,35 +79,35 @@ class OutreachPipeline:
         return all_contacts
 
     # ──────────────────────────────────────────────────────────────────
-    # Stage 3 — EazyReach: verify/enrich emails
+    # Stage 3 — Prospeo Email Selection (/enrich-person)
     # ──────────────────────────────────────────────────────────────────
     def _stage_enrich(self, contacts: list[Contact]) -> list[Contact]:
         needs_enrichment = [c for c in contacts if c.linkedin_url and not c.verified_email]
+        already_have = [c for c in contacts if c not in needs_enrichment]
 
-        with Progress(
-            SpinnerColumn(), TextColumn("[progress.description]{task.description}"),
-            BarColumn(), TextColumn("{task.completed}/{task.total}"),
-            TimeElapsedColumn(), console=console,
-        ) as progress:
-            task = progress.add_task("EazyReach — enriching contacts…", total=len(needs_enrichment))
-            enriched: list[Contact] = []
-            for contact in needs_enrichment:
-                try:
-                    enriched.append(self._eazyreach.run([contact])[0])
-                except Exception as exc:
-                    logger.error("EazyReach error for %s: %s", contact.name, exc)
-                    enriched.append(contact)
-                finally:
+        if needs_enrichment:
+            with Progress(
+                SpinnerColumn(), TextColumn("[progress.description]{task.description}"),
+                BarColumn(), TextColumn("{task.completed}/{task.total}"),
+                TimeElapsedColumn(), console=console,
+            ) as progress:
+                task = progress.add_task(
+                    "Prospeo /enrich-person — enriching contacts…",
+                    total=len(needs_enrichment),
+                )
+                for i, contact in enumerate(needs_enrichment):
+                    if i > 0:
+                        time.sleep(1.5)  # 1 req/s rate limit; 1.5s gives headroom
+                    try:
+                        enriched = self._prospeo.enrich_person(contact.linkedin_url)
+                        if enriched and enriched.verified_email:
+                            contact.verified_email = enriched.verified_email
+                            contact.email_status = enriched.email_status
+                    except Exception as exc:
+                        logger.warning("Enrich failed for %s: %s", contact.name, exc)
                     progress.advance(task)
 
-        # Merge back contacts that already had emails
-        already_have = [c for c in contacts if c not in needs_enrichment]
-        verified = [
-            c for c in enriched
-            if c.best_email and c.email_status in (VerificationStatus.VERIFIED, VerificationStatus.CATCH_ALL)
-        ]
-        verified += [c for c in already_have if c.best_email]
-
+        verified = [c for c in (needs_enrichment + already_have) if c.best_email]
         console.print(f"  [green]✓[/] [bold]{len(verified)}[/] contacts with verified emails")
         return verified
 
@@ -209,7 +209,7 @@ class OutreachPipeline:
         result.contacts = [c.to_flat_dict() for c in contacts]
 
         # 3. Enrich
-        console.print("\n[bold cyan]Stage 3 / 4 — Email Enrichment[/]")
+        console.print("\n[bold cyan]Stage 3 / 4 — Prospeo Email Selection[/]")
         verified_contacts = self._stage_enrich(contacts)
         result.verified_emails = len(verified_contacts)
 

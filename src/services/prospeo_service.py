@@ -329,9 +329,12 @@ class ProspeoService:
         }
 
         response = self._post("/search-person", payload)
-        self._handle_rate_limit_wait(response, "/search-person")
-
-        if response.status_code == 429:
+        for attempt in range(5):
+            if response.status_code != 429:
+                break
+            wait = 2.0 ** attempt  # 1s, 2s, 4s, 8s, 16s
+            logger.warning("Prospeo /search-person rate limited — waiting %.1fs", wait)
+            time.sleep(wait)
             response = self._post("/search-person", payload)
 
         self._raise_for_auth(response)
@@ -411,9 +414,12 @@ class ProspeoService:
         }
 
         response = self._post("/enrich-person", payload)
-        self._handle_rate_limit_wait(response, "/enrich-person")
-
-        if response.status_code == 429:
+        for attempt in range(5):
+            if response.status_code != 429:
+                break
+            wait = 2.0 ** attempt  # 1s, 2s, 4s, 8s, 16s
+            logger.warning("Prospeo /enrich-person rate limited — waiting %.1fs", wait)
+            time.sleep(wait)
             response = self._post("/enrich-person", payload)
 
         self._raise_for_auth(response)
@@ -467,13 +473,18 @@ class ProspeoService:
                 i, i + len(chunk) - 1, len(linkedin_urls),
             )
             response = self._post("/bulk-enrich-person", payload)
-            self._handle_rate_limit_wait(response, "/bulk-enrich-person")
-
-            if response.status_code == 429:
+            for attempt in range(5):
+                if response.status_code != 429:
+                    break
+                wait = 2.0 ** attempt  # 1s, 2s, 4s, 8s, 16s
+                logger.warning("Prospeo /bulk-enrich-person rate limited — waiting %.1fs", wait)
+                time.sleep(wait)
                 response = self._post("/bulk-enrich-person", payload)
 
             self._raise_for_auth(response)
             response.raise_for_status()
+            if i + _BULK_ENRICH_MAX < len(linkedin_urls):
+                time.sleep(1)  # respect 1 req/s rate limit between chunks
             result = response.json()
             self._check_errors(result, "/bulk-enrich-person")
 

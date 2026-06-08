@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -21,10 +20,6 @@ class Settings(BaseSettings):
     prospeo_api_key: str = Field(default="", env="PROSPEO_API_KEY")
     prospeo_base_url: str = Field(default="https://api.prospeo.io", env="PROSPEO_BASE_URL")
     prospeo_contacts_per_domain: int = Field(default=5, env="PROSPEO_CONTACTS_PER_DOMAIN")
-
-    # Eazyreach
-    eazyreach_api_key: str = Field(default="", env="EAZYREACH_API_KEY")
-    eazyreach_base_url: str = Field(default="https://api.eazyreach.io/v1", env="EAZYREACH_BASE_URL")
 
     # Brevo (Sendinblue)
     brevo_api_key: str = Field(default="", env="BREVO_API_KEY")
